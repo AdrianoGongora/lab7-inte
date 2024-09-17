@@ -16,7 +16,7 @@ init:
 docker swarm init
 
 deploy:
-docker stack deploy --compose-file docker-compose.yml mi_stack
+docker stack deploy --compose-file docker-compose-stack.yml mi_stack
 
 verificar servicios
 docker stack services mi_stack
