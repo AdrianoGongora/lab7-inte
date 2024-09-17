@@ -1,0 +1,29 @@
+services:
+  vote:
+    build: 
+      context: ./vote
+      target: dev
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck: 
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    volumes:
+     - ./vote:/usr/local/app
+    ports:
+      - "5000:80"
+
+  redis:
+    build:
+      context: ./redis
+      dockerfile: Dockerfile
+    volumes:
+      - "./healthchecks:/healthchecks"
+    healthcheck:
+      test: /usr/local/bin/redis-healthcheck.sh
+      interval: 5s
+
