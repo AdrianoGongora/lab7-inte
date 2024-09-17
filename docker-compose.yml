@@ -26,4 +26,6 @@ services:
     healthcheck:
       test: /usr/local/bin/redis-healthcheck.sh
       interval: 5s
+    ports:
+      - "6379:6379"
 

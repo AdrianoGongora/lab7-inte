@@ -27,3 +27,5 @@ services:
     deploy:
       restart_policy:
         condition: on-failure
+    ports:
+      - "6379:6379"
