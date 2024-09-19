@@ -21,11 +21,43 @@ services:
     build:
       context: ./redis
       dockerfile: Dockerfile
-    volumes:
-      - "./healthchecks:/healthchecks"
     healthcheck:
       test: /usr/local/bin/redis-healthcheck.sh
       interval: 5s
     ports:
       - "6379:6379"
+  
+  db:
+    build:
+      context: ./postgres
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+    healthcheck:
+      test: /usr/local/bin/postgres-healthcheck.sh
+      interval: "5s"
+    ports:
+      - "5432:5432"
 
+  worker:
+    build:
+      context: ./worker
+    depends_on:
+      redis:
+        condition: service_healthy 
+      db:
+        condition: service_healthy 
+
+
+  result:
+    build: ./result
+    entrypoint: nodemon --inspect=0.0.0.0 server.js
+    depends_on:
+      db:
+        condition: service_healthy 
+    volumes:
+      - ./result:/usr/local/app
+    ports:
+      - "5001:80"
+      

@@ -1,31 +1,49 @@
-version: '3.8'
+version: "3.9"
 
 services:
-  vote:
-    image: mi-vote-app:dev
-    healthcheck: 
-      test: ["CMD", "curl", "-f", "http://localhost"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    volumes:
-      - ./vote:/usr/local/app
-    ports:
-      - "5000:80"
-    deploy:
-      restart_policy:
-        condition: on-failure
 
   redis:
-    image: mi-redis-app
+    image: redis
+    networks:
+      - frontend
+
+  db:
+    image: postgres
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
     volumes:
-      - "./healthchecks:/healthchecks"
-    healthcheck:
-      test: /usr/local/bin/redis-healthcheck.sh
-      interval: 5s
-    deploy:
-      restart_policy:
-        condition: on-failure
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  vote:
+    image: mi-vote-app
     ports:
-      - "6379:6379"
+      - 5000:80
+    networks:
+      - frontend
+    deploy:
+      replicas: 2
+
+  result:
+    image: mi-result-app
+    ports:
+      - 5001:80
+    networks:
+      - backend
+
+  worker:
+    image: mi-worker-app
+    networks:
+      - frontend
+      - backend
+    deploy:
+      replicas: 2
+
+networks:
+  frontend:
+  backend:
+
+volumes:
+  db-data:
