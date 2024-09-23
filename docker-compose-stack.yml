@@ -23,6 +23,7 @@ services:
       - 5000:80
     networks:
       - frontend
+      - backend
     deploy:
       replicas: 2
 
@@ -40,6 +41,38 @@ services:
       - backend
     deploy:
       replicas: 2
+
+  zookeeper:
+    image: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 2181:2181
+    networks:
+      - backend
+    deploy:
+      replicas: 1
+
+  kafka:
+    image: wurstmeister/kafka:latest
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - 9092:9092  # Exponiendo el puerto correcto
+    networks:
+      - backend
+    deploy:
+      replicas: 1
+
 
 networks:
   frontend:

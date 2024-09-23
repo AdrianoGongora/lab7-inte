@@ -6,7 +6,7 @@ using System.Net.Sockets;
 using System.Threading;
 using Newtonsoft.Json;
 using Npgsql;
-using StackExchange.Redis;
+using Confluent.Kafka;
 
 namespace Worker
 {
@@ -17,39 +17,44 @@ namespace Worker
             try
             {
                 var pgsql = OpenDbConnection("Server=db;Username=postgres;Password=postgres;");
-                var redisConn = OpenRedisConnection("redis");
-                var redis = redisConn.GetDatabase();
-
                 var keepAliveCommand = pgsql.CreateCommand();
                 keepAliveCommand.CommandText = "SELECT 1";
 
-                var definition = new { vote = "", voter_id = "" };
-                while (true)
+                var consumerConfig = new ConsumerConfig
                 {
-                    Thread.Sleep(100);
+                    BootstrapServers = "kafka:9092", // Cambia esto si es necesario
+                    GroupId = "vote-consumer-group",
+                    AutoOffsetReset = AutoOffsetReset.Earliest
+                };
 
-                    if (redisConn == null || !redisConn.IsConnected) {
-                        Console.WriteLine("Reconnecting Redis");
-                        redisConn = OpenRedisConnection("redis");
-                        redis = redisConn.GetDatabase();
-                    }
-                    string json = redis.ListLeftPopAsync("votes").Result;
-                    if (json != null)
+                using (var consumer = new ConsumerBuilder<Ignore, string>(consumerConfig).Build())
+                {
+                    consumer.Subscribe("votes");
+
+                    while (true)
                     {
-                        var vote = JsonConvert.DeserializeAnonymousType(json, definition);
-                        Console.WriteLine($"Processing vote for '{vote.vote}' by '{vote.voter_id}'");
-                        if (!pgsql.State.Equals(System.Data.ConnectionState.Open))
+                        try
                         {
-                            Console.WriteLine("Reconnecting DB");
-                            pgsql = OpenDbConnection("Server=db;Username=postgres;Password=postgres;");
-                        }
-                        else
-                        { // Normal +1 vote requested
+                            var cr = consumer.Consume(CancellationToken.None);
+                            var vote = JsonConvert.DeserializeObject<Vote>(cr.Value);
+
+                            Console.WriteLine($"Processing vote for '{vote.vote}' by '{vote.voter_id}'");
+                            if (!pgsql.State.Equals(System.Data.ConnectionState.Open))
+                            {
+                                Console.WriteLine("Reconnecting DB");
+                                pgsql = OpenDbConnection("Server=db;Username=postgres;Password=postgres;");
+                            }
                             UpdateVote(pgsql, vote.voter_id, vote.vote);
                         }
-                    }
-                    else
-                    {
+                        catch (ConsumeException e)
+                        {
+                            Console.WriteLine($"Error occurred: {e.Error.Reason}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.Error.WriteLine(ex.ToString());
+                        }
+
                         keepAliveCommand.ExecuteNonQuery();
                     }
                 }
@@ -97,34 +102,6 @@ namespace Worker
             return connection;
         }
 
-        private static ConnectionMultiplexer OpenRedisConnection(string hostname)
-        {
-            // Use IP address to workaround https://github.com/StackExchange/StackExchange.Redis/issues/410
-            var ipAddress = GetIp(hostname);
-            Console.WriteLine($"Found redis at {ipAddress}");
-
-            while (true)
-            {
-                try
-                {
-                    Console.Error.WriteLine("Connecting to redis");
-                    return ConnectionMultiplexer.Connect(ipAddress);
-                }
-                catch (RedisConnectionException)
-                {
-                    Console.Error.WriteLine("Waiting for redis");
-                    Thread.Sleep(1000);
-                }
-            }
-        }
-
-        private static string GetIp(string hostname)
-            => Dns.GetHostEntryAsync(hostname)
-                .Result
-                .AddressList
-                .First(a => a.AddressFamily == AddressFamily.InterNetwork)
-                .ToString();
-
         private static void UpdateVote(NpgsqlConnection connection, string voterId, string vote)
         {
             var command = connection.CreateCommand();
@@ -144,6 +121,12 @@ namespace Worker
             {
                 command.Dispose();
             }
+        }
+
+        public class Vote
+        {
+            public string voter_id { get; set; }
+            public string vote { get; set; }
         }
     }
 }
