@@ -87,3 +87,29 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://0.0.0.0:9092 
 
+  data:
+    build:
+      context: ./datamining
+    depends_on:
+      - mssql
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_HOST=mssql
+      - DATABASE_NAME=MovieLens
+      - DATABASE_USER=sa
+      - DATABASE_PASSWORD=mssql1Ipw
+
+  mssql:
+    build:
+      context: ./data
+    ports:
+      - 1433:1433
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=mssql1Ipw
+    command: /bin/bash -c "/opt/mssql/bin/sqlservr & sleep 30 && /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P 'mssql1Ipw' -d master -i /var/opt/mssql/app/init.sql && tail -f /dev/null"
+    volumes:
+      - ./init.sql:/var/opt/mssql/app/init.sql
+      - ./data:/var/opt/mssql/app/data
+
