@@ -22,7 +22,7 @@ namespace Worker
 
                 var consumerConfig = new ConsumerConfig
                 {
-                    BootstrapServers = "kafka:9092", // Cambia esto si es necesario
+                    BootstrapServers = "kafka:29092", // Cambia esto si es necesario
                     GroupId = "vote-consumer-group",
                     AutoOffsetReset = AutoOffsetReset.Earliest
                 };

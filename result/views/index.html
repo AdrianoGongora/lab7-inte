@@ -13,11 +13,8 @@
 
 <body ng-controller="statsCtrl">
     <div id="background-stats">
-        <div id="background-stats-1">
-        </div><!--
-      -->
-        <div id="background-stats-2">
-        </div>
+        <div id="background-stats-1"></div>
+        <div id="background-stats-2"></div>
     </div>
     <div id="content-container">
         <div id="content-container-center">
@@ -39,6 +36,46 @@
         <span ng-if="total == 1">{{total}} vote</span>
         <span ng-if="total >= 2">{{total}} votes</span>
     </div>
+
+    <h1>Top 10 Movie Recommendations</h1>
+    <button id="getRecommendations">Get Recommendations</button>
+    <ul id="recommendationsList"></ul>
+
+    <script>
+        // Función para generar un ID aleatorio
+        function generateRandomId() {
+            return Math.floor(Math.random() * 1000) + 1; // Generar un ID aleatorio entre 1 y 1000
+        }
+
+        // Función para obtener las recomendaciones
+        async function getRecommendations() {
+            const randomUserId = generateRandomId(); // Generar ID aleatorio
+            console.log('User ID:', randomUserId); // Mostrar el ID generado en la consola
+            
+            try {
+                const response = await fetch(`http://localhost:8000/recommendations/${randomUserId}`); // Llamar a la API con el ID aleatorio
+                const recommendations = await response.json(); // Obtener el JSON con las recomendaciones
+
+                // Mostrar solo las 10 primeras recomendaciones
+                const top10Recommendations = recommendations.slice(0, 10);
+
+                // Mostrar las recomendaciones en la lista
+                const list = document.getElementById('recommendationsList');
+                list.innerHTML = ''; // Limpiar la lista actual
+                top10Recommendations.forEach(movie => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = movie.Title; // Mostrar el título de la película
+                    list.appendChild(listItem);
+                });
+            } catch (error) {
+                console.error('Error al obtener las recomendaciones:', error);
+            }
+        }
+
+        // Añadir un listener al botón para obtener las recomendaciones
+        document.getElementById('getRecommendations').addEventListener('click', getRecommendations);
+    </script>
+
     <script src="socket.io.js"></script>
     <script src="angular.min.js"></script>
     <script src="app.js"></script>
