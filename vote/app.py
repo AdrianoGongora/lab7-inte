@@ -20,7 +20,7 @@ def create_kafka_producer():
     while True:
         try:
             producer = KafkaProducer(
-                bootstrap_servers='kafka:9092',
+                bootstrap_servers='kafka:29092',
                 value_serializer=lambda v: json.dumps(v).encode('utf-8')
             )
             return producer  # Devuelve el productor si se conecta exitosamente
