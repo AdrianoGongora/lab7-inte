@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, make_response, g
 from redis import Redis
 from kafka import KafkaProducer
-from kafka.errors import KafkaError  # Importar desde kafka.errors
+from kafka.errors import KafkaError
 import os
 import socket
 import random
@@ -15,7 +15,6 @@ hostname = socket.gethostname()
 
 app = Flask(__name__)
 
-# Función para crear el productor de Kafka con reintentos
 def create_kafka_producer():
     while True:
         try:
@@ -23,12 +22,11 @@ def create_kafka_producer():
                 bootstrap_servers='kafka:29092',
                 value_serializer=lambda v: json.dumps(v).encode('utf-8')
             )
-            return producer  # Devuelve el productor si se conecta exitosamente
+            return producer
         except KafkaError as e:
             app.logger.error('Error connecting to Kafka: %s', e)
-            time.sleep(3)  # Espera 30 segundos antes de reintentar
+            time.sleep(3)
 
-# Inicializa el productor de Kafka
 producer = create_kafka_producer()
 
 gunicorn_error_logger = logging.getLogger('gunicorn.error')
@@ -53,11 +51,9 @@ def hello():
         vote = request.form['vote']
         app.logger.info('Received vote for %s', vote)
         
-        # Guardar el voto en Redis
         data = json.dumps({'voter_id': voter_id, 'vote': vote})
         redis.rpush('votes', data)
 
-        # Enviar el mensaje de voto al tópico de Kafka
         try:
             producer.send('votes', {'voter_id': voter_id, 'vote': vote})
             app.logger.info('Sent vote to Kafka: %s', data)
