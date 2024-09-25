@@ -1,10 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-import pandas as pd
 from sqlalchemy import create_engine
+import pandas as pd
+from functools import lru_cache
 
 app = FastAPI()
 
+# Middleware para permitir CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Permitir solicitudes desde cualquier origen, puedes restringirlo a dominios específicos
@@ -13,6 +15,7 @@ app.add_middleware(
     allow_headers=["*"],  # Permitir todas las cabeceras
 )
 
+# Detalles de la conexión a la base de datos
 server = 'mssql'
 database = 'MovieLens'
 username = 'sa'
@@ -24,10 +27,11 @@ connection_string = (
 # Crear el motor de SQLAlchemy
 engine = create_engine(connection_string)
 
+# Implementar cacheo para las matrices de ratings y similitud
+@lru_cache(maxsize=1)
 def get_ratings_and_movies():
-    # Conexión a la base de datos con SQLAlchemy
     with engine.connect() as conn:
-        # Cargar los ratings de los usuarios
+        # Cargar los ratings de los usuarios con una consulta optimizada
         query_ratings = """
             SELECT UserID, MovieID, Rating
             FROM Ratings
@@ -44,7 +48,7 @@ def get_ratings_and_movies():
     # Crear la matriz de ratings
     ratings_matrix = ratings_df.pivot_table(index='UserID', columns='MovieID', values='Rating')
 
-    # Crear la matriz de similitud entre películas
+    # Crear la matriz de similitud entre películas (con cacheo)
     similarity_matrix = ratings_matrix.corr(method='pearson', min_periods=50)
 
     return ratings_matrix, similarity_matrix, movies_df
@@ -55,17 +59,16 @@ def recommend_movies(user_id: int, ratings_matrix: pd.DataFrame, similarity_matr
         raise HTTPException(status_code=404, detail=f"User {user_id} not found in the database.")
 
     user_ratings = ratings_matrix.loc[user_id].dropna()
-
     liked_movies = user_ratings[user_ratings >= threshold].index
 
-    recommendations = pd.Series(dtype=float)  # Asegurarse de que sea float
+    recommendations = pd.Series(dtype=float)
     for movie_id in liked_movies:
         similar_movies = similarity_matrix[movie_id].dropna()
         similar_movies = similar_movies[similar_movies > 0.0]
         similar_movies = similar_movies * user_ratings[movie_id]
-        
         recommendations = pd.concat([recommendations, similar_movies])
 
+    # Optimización: Agrupar y sumar fuera del loop
     recommendations = recommendations.groupby(recommendations.index).sum()
 
     # Remover películas ya vistas
@@ -73,11 +76,10 @@ def recommend_movies(user_id: int, ratings_matrix: pd.DataFrame, similarity_matr
 
     return recommendations.sort_values(ascending=False)
 
-
 # Endpoint para obtener recomendaciones
 @app.get("/recommendations/{user_id}")
 def get_recommendations(user_id: int):
-    # Cargar los datos
+    # Cargar matrices desde cache
     ratings_matrix, similarity_matrix, movies_df = get_ratings_and_movies()
 
     # Obtener recomendaciones
@@ -90,5 +92,4 @@ def get_recommendations(user_id: int):
     # Limitar a las 10 primeras películas
     top_10_recommendations = recommended_movies.head(10)
 
-    # Retornar las recomendaciones
     return top_10_recommendations.to_dict(orient="records")

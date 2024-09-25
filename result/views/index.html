@@ -42,29 +42,25 @@
     <ul id="recommendationsList"></ul>
 
     <script>
-        // Función para generar un ID aleatorio
         function generateRandomId() {
-            return Math.floor(Math.random() * 1000) + 1; // Generar un ID aleatorio entre 1 y 1000
+            return Math.floor(Math.random() * 1000) + 1;
         }
 
-        // Función para obtener las recomendaciones
         async function getRecommendations() {
-            const randomUserId = generateRandomId(); // Generar ID aleatorio
-            console.log('User ID:', randomUserId); // Mostrar el ID generado en la consola
+            const randomUserId = generateRandomId();
+            console.log('User ID:', randomUserId);
             
             try {
-                const response = await fetch(`http://localhost:8000/recommendations/${randomUserId}`); // Llamar a la API con el ID aleatorio
-                const recommendations = await response.json(); // Obtener el JSON con las recomendaciones
+                const response = await fetch(`http://localhost:8000/recommendations/${randomUserId}`);
+                const recommendations = await response.json();
 
-                // Mostrar solo las 10 primeras recomendaciones
                 const top10Recommendations = recommendations.slice(0, 10);
 
-                // Mostrar las recomendaciones en la lista
                 const list = document.getElementById('recommendationsList');
-                list.innerHTML = ''; // Limpiar la lista actual
+                list.innerHTML = '';
                 top10Recommendations.forEach(movie => {
                     const listItem = document.createElement('li');
-                    listItem.textContent = movie.Title; // Mostrar el título de la película
+                    listItem.textContent = movie.Title;
                     list.appendChild(listItem);
                 });
             } catch (error) {
@@ -72,7 +68,6 @@
             }
         }
 
-        // Añadir un listener al botón para obtener las recomendaciones
         document.getElementById('getRecommendations').addEventListener('click', getRecommendations);
     </script>
 

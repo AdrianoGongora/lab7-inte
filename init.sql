@@ -1,19 +1,15 @@
--- Crear la base de datos
 CREATE DATABASE MovieLens;
 GO
 
--- Usar la base de datos
 USE MovieLens;
 GO
 
--- Crear tabla de películas
 CREATE TABLE Movies (
     MovieID INT PRIMARY KEY,
     Title NVARCHAR(255),
     Genres NVARCHAR(255)
 );
 
--- Crear tabla de usuarios
 CREATE TABLE Users (
     UserID INT PRIMARY KEY,
     Gender CHAR(1),
@@ -22,7 +18,6 @@ CREATE TABLE Users (
     ZipCode NVARCHAR(10)
 );
 
--- Crear tabla de ratings
 CREATE TABLE Ratings (
     UserID INT,
     MovieID INT,
@@ -34,7 +29,17 @@ CREATE TABLE Ratings (
 );
 GO
 
--- Insertar datos en la tabla Movies
+
+CREATE INDEX idx_ratings_user_movie ON Ratings(UserID, MovieID);
+CREATE INDEX idx_ratings_movie ON Ratings(MovieID);
+CREATE INDEX idx_ratings_timestamp ON Ratings(Timestamp);
+
+CREATE INDEX idx_movies_title ON Movies(Title);
+
+CREATE INDEX idx_users_occupation ON Users(OccupationID);
+CREATE INDEX idx_users_zipcode ON Users(ZipCode);
+GO
+
 BULK INSERT Movies
 FROM '/var/opt/mssql/app/data/movies.dat'
 WITH (
@@ -43,7 +48,6 @@ WITH (
     FIRSTROW = 1
 );
 
--- Insertar datos en la tabla Users
 BULK INSERT Users
 FROM '/var/opt/mssql/app/data/users.dat'
 WITH (
@@ -52,7 +56,6 @@ WITH (
     FIRSTROW = 1
 );
 
--- Insertar datos en la tabla Ratings
 BULK INSERT Ratings
 FROM '/var/opt/mssql/app/data/ratings.dat'
 WITH (
